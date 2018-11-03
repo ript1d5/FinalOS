@@ -1,19 +1,30 @@
-#pragma comment(lib, "Ws2_32.lib")
-
 #include<stdio.h>
 #include<stdlib.h>
-//#include<sys/types.h>
-//#include<unistd.h>
-#include <Ws2tcpip.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
 #include<time.h>
-#include<Winsock2.h>
+#include<string.h>
+#include<arpa/inet.h>
+#include <errno.h>
 
-//Needs to be converted to linux
+#define MAX  1000
 
-#define MAX 1000
 
-void delay(int number_of_seconds)
-{
+
+
+void delay();
+void run_client();
+
+
+
+int main() {
+	run_client();
+	return 0;
+}
+
+
+
+void delay(int number_of_seconds){
 	// Converting time into milli_seconds
 	int milli_seconds = 1000 * number_of_seconds;
 
@@ -25,61 +36,62 @@ void delay(int number_of_seconds)
 }
 
 
-int main() {
-	WSADATA mywsadata;
-	WSAStartup(0x0202, &mywsadata);
 
+void run_client(){
 	char recieved[MAX], to_send[MAX], username[MAX];
-
-	int net_socket = socket(AF_INET, SOCK_STREAM, 0);
-
+	int net_socket, conn_stat, valread;	
 	struct sockaddr_in server_address;
-	server_address.sin_family = AF_INET;
-	server_address.sin_port = htons(9005);
-	InetPton(AF_INET, "192.168.1.209", &server_address.sin_addr.s_addr);
+	socklen_t  address_size;
 
-	int conn_stat = connect(net_socket, (struct sockaddr *) &server_address, sizeof(server_address));
-	if (conn_stat == -1) {
-		printf("There was an error connecting to the socket\n");
+	if((net_socket = socket(PF_INET, SOCK_STREAM, 0)) == -1){
+		perror("Socket Failed");
+		exit(EXIT_FAILURE);
 	}
 
-	//Gets initial messages from the server
-		recv(net_socket, recieved, sizeof(recieved), 0);
-		printf("%s", recieved);
-		memset(recieved, 0, sizeof(recieved));
+	//Server address is IPv4 and port is 9005 - Initialize server_address to NULL	
+	server_address.sin_family = AF_INET;
+	server_address.sin_port = htons(7891);	
+	server_address.sin_addr.s_addr = inet_addr("127.0.0.1");	
 
-		recv(net_socket, recieved, sizeof(recieved), 0);
-		printf("%s", recieved);
-		memset(recieved, 0, sizeof(recieved));
+	memset(server_address.sin_zero, '\0', sizeof server_address.sin_zero);
 
-		fgets(username, MAX, stdin);
-		strtok(username, "\n");
-		send(net_socket, username, sizeof(username), 0);
+	address_size = sizeof server_address;
+	if(connect(net_socket, (struct sockaddr *) &server_address, address_size) == -1){
+		printf("There was an error connecting to the socket\n");
+		printf("ERRNO %s",strerror(errno));
+		exit(EXIT_FAILURE);
+
+	}
+
 
 	while (1) {
-		recv(net_socket, recieved, sizeof(recieved), 0);
+		recv(net_socket, recieved, sizeof(recieved),0);
+		
 		printf("Server: ");
 		printf("%s\n", recieved);
-		if (strcmp(recieved, "Server has ended") == 0) {
-			delay(5);
-			break;
+		if (strcmp(recieved, "exit") == 0) {
+			delay(3);
+			return;
 		}
 		memset(recieved, 0, sizeof(recieved));
 
 		//Sending message to server
 		printf("%s: ", username);
 		memset(to_send, 0, sizeof(to_send));
+		
 		fgets(to_send, MAX, stdin);
 		printf("\n");
+		
+		//Sending message to server
 		if (strcmp(to_send, "exit\n") == 0) {
-			printf("Exiting...");
-			send(net_socket, "Client has left", sizeof(username), 0);
-			break;
+			printf("Exiting...\n");
+			send(net_socket, "exit", sizeof(username), 0);
+			exit(0);
 		}
 		send(net_socket, to_send, strlen(to_send), 0);
 	}
 
-	closesocket(net_socket);
-	return 0;
+	return;
+
 
 }
