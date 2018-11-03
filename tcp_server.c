@@ -17,7 +17,7 @@
 
 
 #define MAX 1000
-
+#define PORT_NUM 7891
 
 
 void create_server();
@@ -51,11 +51,10 @@ void create_server(){
 
 	//Address is a struct of sockaddr_in and uses IPv4 and the localhost for IP
     address.sin_family = AF_INET; 
-    address.sin_port = htons(7891);
-	address.sin_addr.s_addr = inet_addr("127.0.0.1");
+    address.sin_port = htons(PORT_NUM);
+	address.sin_addr.s_addr = htonl(INADDR_ANY);
 
-
-    // Forcefully attaching socket to the port 8080
+    // Forcefully attaching socket to the port PORT_NUM
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address))<0){
         perror("bind failed");
         exit(EXIT_FAILURE);
@@ -65,7 +64,7 @@ void create_server(){
         perror("listen");
         exit(EXIT_FAILURE);
     }
-	addr_size = sizeof server_storage;
+	addr_size = sizeof(server_storage);
 	if ((new_socket = accept(server_fd, (struct sockaddr *) &server_storage, &addr_size)) < 0){
 			perror("accept");
 			exit(EXIT_FAILURE);
