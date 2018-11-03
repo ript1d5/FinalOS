@@ -13,7 +13,7 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <arpa/inet.h>
-
+#include <pthread.h> 
 
 
 #define MAX 1000
@@ -21,7 +21,7 @@
 
 
 void create_server();
-void messager(int new_socket);
+void *messager(void *in_arg);
 
 
 
@@ -40,6 +40,7 @@ void create_server(){
 	struct sockaddr_in address;
     int opt = 1;
     int addrlen = sizeof(address);
+	pthread_t thread_id;
    
 	
 	// Creating socket file descriptor
@@ -64,20 +65,28 @@ void create_server(){
         perror("listen");
         exit(EXIT_FAILURE);
     }
-	addr_size = sizeof(server_storage);
-	if ((new_socket = accept(server_fd, (struct sockaddr *) &server_storage, &addr_size)) < 0){
-			perror("accept");
+
+	int remaining_connections = 3; // TODO: change while condition to check shared memory for notification to terminate? 
+	while (remaining_connections > 0)  {
+		addr_size = sizeof(server_storage);
+		if ((new_socket = accept(server_fd, (struct sockaddr *) &server_storage, &addr_size)) < 0){
+				perror("accept");
+				exit(EXIT_FAILURE);
+		}
+		if (pthread_create(&thread_id, NULL, messager, (void *)(intptr_t)new_socket) != 0) {
+			perror("Unable to create thread to handle new connection");
 			exit(EXIT_FAILURE);
+		}
+		remaining_connections--;
 	}
-
-
-	messager(new_socket);
 }
 
 
 
-void messager(int new_socket){
-    char buffer[MAX] = {0}, message[MAX];
+void *messager(void *in_arg){
+	int new_socket = (intptr_t) in_arg;
+    char buffer[MAX] = {0};
+	char *message = "testing, testing, 1, 2, 3..."; // Test response
 	char hello[] = 
 "\n   *****************************\n\
    *                           *\n\
@@ -87,45 +96,19 @@ void messager(int new_socket){
    *                           *\n\
    *****************************\n\n\n\n\n";
  
-	
-	
-	
-	//Send server greeting message
+	// Send server greeting message
 	send(new_socket, hello, strlen(hello),0);
 
-
-	//If user enters "exit" terminate
-	while(1){
-		
-		recv(new_socket, buffer, 1024,0);
+	// Receive writer message
+	recv(new_socket, buffer, 1024,0);
 	
-		if(strcmp(buffer, "exit") == 0){
-			recv(new_socket, buffer, MAX, 0);
-			printf("Client has left the server\n");
-			return;
-		}	
-		
-		printf("Other user: %s", buffer);
+	printf("Other user: %s", buffer);
 
-		//Input message from stdin
-		printf(">>");
-		fgets(message,MAX, stdin);
-		printf("\n");
-		
-		if(strcmp(message,"exit") == 0){
-			printf("Exiting...\n");
-			send(new_socket, "exit\n", sizeof(message),0);
-			return;
-		}
+	sleep(2);
 
-		//Send and reset buffer
-		send(new_socket, message, strlen(message), 0);
-		memset(message, 0, sizeof message);
-		memset(buffer, 0, 1024);
-	}
+	// Send whatever is in shared memory
+	send(new_socket, message, strlen(message), 0);
 
 	close(new_socket); 
-    return;
-
-
+	pthread_exit(NULL);
 }
