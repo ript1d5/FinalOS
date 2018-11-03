@@ -1,5 +1,6 @@
 #include<stdio.h>
 #include<stdlib.h>
+#include<sys/types.h>
 #include<sys/socket.h>
 #include<netinet/in.h>
 #include<time.h>
@@ -8,7 +9,7 @@
 #include <errno.h>
 
 #define MAX  1000
-
+#define PORT_NUM 7891
 
 
 
@@ -17,8 +18,14 @@ void run_client();
 
 
 
-int main() {
-	run_client();
+int main(int argc, char **argv) {
+	if(argc != 2) {
+		printf("Usage: /{filename} {server_ip}\n");
+		return -1;
+	} 
+	char * ip_addr = argv[1];
+
+	run_client(ip_addr);
 	return 0;
 }
 
@@ -37,28 +44,28 @@ void delay(int number_of_seconds){
 
 
 
-void run_client(){
+void run_client(const char * ip_addr){
 	char recieved[MAX], to_send[MAX], username[MAX];
 	int net_socket, conn_stat, valread;	
 	struct sockaddr_in server_address;
 	socklen_t  address_size;
 
-	if((net_socket = socket(PF_INET, SOCK_STREAM, 0)) == -1){
+	if((net_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1){
 		perror("Socket Failed");
 		exit(EXIT_FAILURE);
 	}
 
 	//Server address is IPv4 and port is 9005 - Initialize server_address to NULL	
 	server_address.sin_family = AF_INET;
-	server_address.sin_port = htons(7891);	
-	server_address.sin_addr.s_addr = inet_addr("127.0.0.1");	
+	server_address.sin_port = htons(PORT_NUM);	
+	server_address.sin_addr.s_addr = inet_addr(ip_addr);	
 
-	memset(server_address.sin_zero, '\0', sizeof server_address.sin_zero);
+	//memset(server_address.sin_zero, '\0', sizeof server_address.sin_zero);
 
-	address_size = sizeof server_address;
-	if(connect(net_socket, (struct sockaddr *) &server_address, address_size) == -1){
+	// address_size = sizeof server_address;
+	if(connect(net_socket, (struct sockaddr *)&server_address, sizeof(server_address)) == -1){
 		printf("There was an error connecting to the socket\n");
-		printf("ERRNO %s",strerror(errno));
+		printf("ERRNO %s\n",strerror(errno));
 		exit(EXIT_FAILURE);
 
 	}
