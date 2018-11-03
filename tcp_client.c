@@ -45,7 +45,7 @@ void delay(int number_of_seconds){
 
 
 void run_client(const char * ip_addr){
-	char recieved[MAX], to_send[MAX], username[MAX];
+	char received[MAX], to_send[MAX], username[MAX];
 	int net_socket, conn_stat, valread;	
 	struct sockaddr_in server_address;
 	socklen_t  address_size;
@@ -55,50 +55,41 @@ void run_client(const char * ip_addr){
 		exit(EXIT_FAILURE);
 	}
 
-	//Server address is IPv4 and port is 9005 - Initialize server_address to NULL	
+	//Server address is IPv4 and port is PORT_NUM
 	server_address.sin_family = AF_INET;
 	server_address.sin_port = htons(PORT_NUM);	
 	server_address.sin_addr.s_addr = inet_addr(ip_addr);	
-
-	//memset(server_address.sin_zero, '\0', sizeof server_address.sin_zero);
 
 	// address_size = sizeof server_address;
 	if(connect(net_socket, (struct sockaddr *)&server_address, sizeof(server_address)) == -1){
 		printf("There was an error connecting to the socket\n");
 		printf("ERRNO %s\n",strerror(errno));
 		exit(EXIT_FAILURE);
-
 	}
 
-
-	while (1) {
-		recv(net_socket, recieved, sizeof(recieved),0);
-		
-		printf("Server: ");
-		printf("%s\n", recieved);
-		if (strcmp(recieved, "exit") == 0) {
-			delay(3);
-			return;
-		}
-		memset(recieved, 0, sizeof(recieved));
-
-		//Sending message to server
-		printf("%s: ", username);
-		memset(to_send, 0, sizeof(to_send));
-		
-		fgets(to_send, MAX, stdin);
-		printf("\n");
-		
-		//Sending message to server
-		if (strcmp(to_send, "exit\n") == 0) {
-			printf("Exiting...\n");
-			send(net_socket, "exit", sizeof(username), 0);
-			exit(0);
-		}
-		send(net_socket, to_send, strlen(to_send), 0);
+	// Receiving welcome message
+	recv(net_socket, received, sizeof(received),0);
+	printf("%s", received);
+	memset(received, 0, sizeof(received));
+	
+	// Input message
+	printf("%s: ", username);
+	memset(to_send, 0, sizeof(to_send));
+	fgets(to_send, MAX, stdin);
+	printf("\n");
+	
+	//Sending message to server
+	if(send(net_socket, to_send, strlen(to_send), 0) < 0) {
+		printf("Error: send() failed\n");
+		exit(EXIT_FAILURE);
 	}
+
+	// Receive reply and terminate
+	if(recv(net_socket, received, sizeof(received), 0) < 0) {
+		printf("Error: recv() failed\n");
+		exit(EXIT_FAILURE);
+	}
+	printf("Server: %s\n", received);
 
 	return;
-
-
 }
